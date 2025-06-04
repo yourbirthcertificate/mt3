@@ -23,6 +23,7 @@ import tensorflow as tf
 DEFAULT_SAMPLE_RATE = 16000
 DEFAULT_HOP_WIDTH = 128
 DEFAULT_NUM_MEL_BINS = 512
+DEFAULT_PREEMPHASIS = 0.0
 
 # fixed constants; add these to SpectrogramConfig before changing
 FFT_SIZE = 2048
@@ -35,6 +36,7 @@ class SpectrogramConfig:
   sample_rate: int = DEFAULT_SAMPLE_RATE
   hop_width: int = DEFAULT_HOP_WIDTH
   num_mel_bins: int = DEFAULT_NUM_MEL_BINS
+  preemphasis: float = DEFAULT_PREEMPHASIS
 
   @property
   def abbrev_str(self):
@@ -45,6 +47,8 @@ class SpectrogramConfig:
       s += 'hw%d' % self.hop_width
     if self.num_mel_bins != DEFAULT_NUM_MEL_BINS:
       s += 'mb%d' % self.num_mel_bins
+    if self.preemphasis != DEFAULT_PREEMPHASIS:
+      s += 'pe%d' % round(self.preemphasis * 100)
     return s
 
   @property
@@ -63,6 +67,12 @@ def split_audio(samples, spectrogram_config):
 
 def compute_spectrogram(samples, spectrogram_config):
   """Compute a mel spectrogram."""
+  if spectrogram_config.preemphasis:
+    samples = tf.concat([
+        samples[:1],
+        samples[1:] - spectrogram_config.preemphasis * samples[:-1]
+    ],
+                       axis=0)
   overlap = 1 - (spectrogram_config.hop_width / FFT_SIZE)
   return spectral_ops.compute_logmel(
       samples,
